@@ -1,0 +1,27 @@
+{
+  "scenarios": [
+    "scenarios/dh_001.json",
+    "scenarios/dh_002.json",
+    "scenarios/tm_001.json"
+  ],
+  "repetitions": 3,
+  "models": [
+    {
+      "id": "sol-medium",
+      "backend": "openai_oauth",
+      "model": "<identyfikator modelu>",
+      "settings": {
+        "reasoning_effort": "medium"
+      }
+    },
+    {
+      "id": "gemma-local",
+      "backend": "ollama",
+      "model": "<tag modelu w Ollama>",
+      "settings": {
+        "temperature": 0.7
+      }
+    }
+  ],
+  "results_dir": "results"
+}

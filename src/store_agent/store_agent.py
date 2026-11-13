@@ -1,5 +1,6 @@
 """Store assistant backed by an externally configured LLM."""
 
+from pathlib import Path
 from typing import Final
 
 from pydantic_ai import Agent, AgentRunResult
@@ -28,9 +29,14 @@ class StoreAgent:
         "Husarix customers."
     )
 
-    def __init__(self, model: Model) -> None:
-        self._agent: Agent[None, str] = Agent(
+    def __init__(self, model: Model, *, documents_root: Path) -> None:
+        self._documents_root = documents_root.resolve(strict=True)
+        if not self._documents_root.is_dir():
+            raise NotADirectoryError(f"Not a document directory: {documents_root}")
+
+        self._agent: Agent[Path, str] = Agent(
             model=model,
+            deps_type=Path,
             system_prompt=self.SYSTEM_PROMPT,
             output_type=str,
             tools=[list_documents, read_document],
@@ -38,4 +44,4 @@ class StoreAgent:
 
     async def run(self, prompt: str) -> AgentRunResult[str]:
         """Run the agent and return its response and execution details."""
-        return await self._agent.run(prompt)
+        return await self._agent.run(prompt, deps=self._documents_root)
