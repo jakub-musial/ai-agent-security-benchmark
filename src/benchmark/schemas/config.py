@@ -1,17 +1,16 @@
 """Pydantic models for benchmark runner configuration."""
 
-from typing import Annotated, Literal, Self
+from typing import Literal, Self
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    StringConstraints,
     field_validator,
     model_validator,
 )
 
-NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+from .types import NonEmptyString
 
 
 class GenerationSettings(BaseModel):

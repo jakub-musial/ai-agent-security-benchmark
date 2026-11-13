@@ -19,7 +19,7 @@ from pydantic_ai.providers.openai_chatgpt import (
 )
 from pydantic_ai.settings import ModelSettings
 
-from .config import ModelConfig
+from .schemas.config import ModelConfig
 
 
 async def login_chatgpt(
