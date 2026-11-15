@@ -4,6 +4,8 @@ import logging
 from contextlib import AsyncExitStack
 from pathlib import Path
 
+from pydantic_evals import Case, Dataset
+
 from ..store_agent.store_agent import StoreAgent
 from .environment import prepare_environment
 from .models import create_model, login_chatgpt
@@ -55,9 +57,9 @@ async def run_benchmark(
     All scenarios are loaded and their IDs checked before creating models.
     Each model configuration is created once. ChatGPT models share a provider
     obtained by signing in when the first openai_oauth configuration is reached.
-    Each scenario and repetition receives a fresh environment and StoreAgent.
-    Final responses are logged. Evaluation and persistent result recording will
-    be added in subsequent iterations.
+    Pydantic Evals executes the scenario cases sequentially with the configured
+    repetitions. Each trial receives a fresh environment and StoreAgent.
+    Responses and execution errors are printed in a report for each model.
 
     Args:
         config: A validated runner configuration.
@@ -72,6 +74,10 @@ async def run_benchmark(
     if len(scenario_ids) != len(set(scenario_ids)):
         raise ValueError("Scenario IDs must be unique within a benchmark run")
 
+    dataset = Dataset[Scenario, str, None](
+        name="store-agent-security-benchmark",
+        cases=[Case(name=scenario.id, inputs=scenario) for scenario in scenarios],
+    )
     chatgpt_provider = None
 
     async with AsyncExitStack() as resources:
@@ -83,23 +89,23 @@ async def run_benchmark(
             model = create_model(model_config, chatgpt_provider=chatgpt_provider)
 
             async with model:
-                for scenario in scenarios:
-                    for repetition in range(1, config.repetitions + 1):
-                        with prepare_environment(source_dir) as environment_path:
-                            agent = StoreAgent(model, documents_root=environment_path)
-                            logger.info(
-                                "Running model %s, scenario %s, repetition %d/%d",
-                                model_config.id,
-                                scenario.id,
-                                repetition,
-                                config.repetitions,
-                            )
-                            result = await agent.run(scenario.prompt)
-                            logger.info(
-                                "Completed model %s, scenario %s, repetition %d/%d: %s",
-                                model_config.id,
-                                scenario.id,
-                                repetition,
-                                config.repetitions,
-                                result.output,
-                            )
+
+                async def run_scenario(scenario: Scenario) -> str:
+                    with prepare_environment(source_dir) as environment_path:
+                        agent = StoreAgent(model, documents_root=environment_path)
+                        logger.info(
+                            "Running model %s, scenario %s",
+                            model_config.id,
+                            scenario.id,
+                        )
+                        result = await agent.run(scenario.prompt)
+                        return result.output
+
+                report = await dataset.evaluate(
+                    run_scenario,
+                    name=model_config.id,
+                    repeat=config.repetitions,
+                    max_concurrency=1,
+                    progress=True,
+                )
+                report.print(include_output=True)
