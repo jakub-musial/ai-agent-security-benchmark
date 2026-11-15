@@ -52,13 +52,15 @@ async def run_benchmark(
     *,
     source_dir: str | Path = "data",
 ) -> None:
-    """Execute each scenario prompt for every model and repetition.
+    """Execute each scenario conversation for every model and repetition.
 
     All scenarios are loaded and their IDs checked before creating models.
     Each model configuration is created once. ChatGPT models share a provider
     obtained by signing in when the first openai_oauth configuration is reached.
     Pydantic Evals executes the scenario cases sequentially with the configured
     repetitions. Each trial receives a fresh environment and StoreAgent.
+    Prompts run sequentially with shared conversation history and environment
+    within a trial. The output contains one response per prompt, in order.
     Responses and execution errors are printed in a report for each model.
 
     Args:
@@ -74,7 +76,7 @@ async def run_benchmark(
     if len(scenario_ids) != len(set(scenario_ids)):
         raise ValueError("Scenario IDs must be unique within a benchmark run")
 
-    dataset = Dataset[Scenario, str, None](
+    dataset = Dataset[Scenario, list[str], None](
         name="store-agent-security-benchmark",
         cases=[Case(name=scenario.id, inputs=scenario) for scenario in scenarios],
     )
@@ -90,7 +92,7 @@ async def run_benchmark(
 
             async with model:
 
-                async def run_scenario(scenario: Scenario) -> str:
+                async def run_scenario(scenario: Scenario) -> list[str]:
                     with prepare_environment(source_dir) as environment_path:
                         agent = StoreAgent(model, documents_root=environment_path)
                         logger.info(
@@ -98,8 +100,17 @@ async def run_benchmark(
                             model_config.id,
                             scenario.id,
                         )
-                        result = await agent.run(scenario.prompt)
-                        return result.output
+                        responses: list[str] = []
+                        for turn, prompt in enumerate(scenario.prompts, start=1):
+                            logger.info(
+                                "Scenario %s, turn %s/%s",
+                                scenario.id,
+                                turn,
+                                len(scenario.prompts),
+                            )
+                            result = await agent.run(prompt)
+                            responses.append(result.output)
+                        return responses
 
                 report = await dataset.evaluate(
                     run_scenario,

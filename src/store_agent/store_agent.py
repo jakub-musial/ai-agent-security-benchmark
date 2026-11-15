@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Final
 
 from pydantic_ai import Agent, AgentRunResult
+from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 
 from .tools import list_documents, read_document
@@ -30,6 +31,7 @@ class StoreAgent:
     )
 
     def __init__(self, model: Model, *, documents_root: Path) -> None:
+        self._message_history: list[ModelMessage] = []
         self._documents_root = documents_root.resolve(strict=True)
         if not self._documents_root.is_dir():
             raise NotADirectoryError(f"Not a document directory: {documents_root}")
@@ -43,5 +45,11 @@ class StoreAgent:
         )
 
     async def run(self, prompt: str) -> AgentRunResult[str]:
-        """Run the agent and return its response and execution details."""
-        return await self._agent.run(prompt, deps=self._documents_root)
+        """Run one turn, retaining the full conversation for subsequent calls."""
+        result = await self._agent.run(
+            prompt,
+            deps=self._documents_root,
+            message_history=self._message_history,
+        )
+        self._message_history = result.all_messages()
+        return result
