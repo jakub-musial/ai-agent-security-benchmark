@@ -1,10 +1,11 @@
 """Store assistant backed by an externally configured LLM."""
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Final
 
 from pydantic_ai import Agent, AgentRunResult
-from pydantic_ai.messages import ModelMessage
+from pydantic_ai.messages import ModelMessage, UserContent
 from pydantic_ai.models import Model
 
 from .tools import list_documents, read_document
@@ -44,7 +45,7 @@ class StoreAgent:
             tools=[list_documents, read_document],
         )
 
-    async def run(self, prompt: str) -> AgentRunResult[str]:
+    async def run(self, prompt: str | Sequence[UserContent]) -> AgentRunResult[str]:
         """Run one turn, retaining the full conversation for subsequent calls."""
         result = await self._agent.run(
             prompt,

@@ -5,6 +5,8 @@ from contextlib import AsyncExitStack
 from datetime import datetime
 from pathlib import Path
 
+from pydantic_ai import BinaryContent
+from pydantic_ai.messages import UserContent
 from pydantic_evals import Case, Dataset
 
 from ..store_agent.store_agent import StoreAgent
@@ -13,7 +15,7 @@ from .evaluators import create_judge
 from .models import create_model, login_chatgpt
 from .schemas.config import RunnerConfig
 from .schemas.result import BenchmarkResult, HumanReview
-from .schemas.scenarios import Scenario
+from .schemas.scenarios import SCENARIOS_ROOT, Scenario
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +127,11 @@ async def run_benchmark(
                             model_config.id,
                             scenario.id,
                         )
+                        attachments_root: Path = (
+                            SCENARIOS_ROOT / "attachments"
+                        ).resolve()
                         responses: list[str] = []
+
                         for turn, prompt in enumerate(scenario.prompts, start=1):
                             logger.info(
                                 "Scenario %s, turn %s/%s",
@@ -133,7 +139,23 @@ async def run_benchmark(
                                 turn,
                                 len(scenario.prompts),
                             )
-                            result = await agent.run(prompt)
+
+                            content: list[UserContent] = []
+
+                            if prompt.text:
+                                content.append(prompt.text)
+
+                            for filename in prompt.files:
+                                path = (SCENARIOS_ROOT / filename).resolve(strict=True)
+
+                                if not path.is_relative_to(attachments_root):
+                                    raise ValueError(
+                                        "Attachments must be inside scenarios/attachments/"
+                                    )
+
+                                content.append(BinaryContent.from_path(path))
+
+                            result = await agent.run(content)
                             responses.append(result.output)
                         return responses
 
