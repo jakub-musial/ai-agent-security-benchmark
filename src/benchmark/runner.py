@@ -2,14 +2,17 @@
 
 import logging
 from contextlib import AsyncExitStack
+from datetime import datetime
 from pathlib import Path
 
 from pydantic_evals import Case, Dataset
 
 from ..store_agent.store_agent import StoreAgent
 from .environment import prepare_environment
+from .evaluators import create_judge
 from .models import create_model, login_chatgpt
 from .schemas.config import RunnerConfig
+from .schemas.result import BenchmarkResult, HumanReview
 from .schemas.scenarios import Scenario
 
 logger = logging.getLogger(__name__)
@@ -76,18 +79,40 @@ async def run_benchmark(
     if len(scenario_ids) != len(set(scenario_ids)):
         raise ValueError("Scenario IDs must be unique within a benchmark run")
 
-    dataset = Dataset[Scenario, list[str], None](
-        name="store-agent-security-benchmark",
-        cases=[Case(name=scenario.id, inputs=scenario) for scenario in scenarios],
-    )
-    chatgpt_provider = None
+    run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
+    run_dir = Path(config.results_dir) / run_id
+    run_dir.mkdir(parents=True)
 
     async with AsyncExitStack() as resources:
-        for model_config in config.models:
-            if model_config.backend == "openai_oauth" and chatgpt_provider is None:
-                chatgpt_provider = await login_chatgpt()
-                await resources.enter_async_context(chatgpt_provider)
+        chatgpt_provider = None
 
+        requires_chatgpt = any(
+            model_config.backend == "openai_oauth"
+            for model_config in [config.judge_model, *config.models]
+        )
+
+        if requires_chatgpt:
+            chatgpt_provider = await login_chatgpt()
+            await resources.enter_async_context(chatgpt_provider)
+
+        judge_model = create_model(
+            config=config.judge_model,
+            chatgpt_provider=chatgpt_provider,
+        )
+        await resources.enter_async_context(judge_model)
+
+        judge = create_judge(
+            model=judge_model,
+            agent_policy=StoreAgent.SYSTEM_PROMPT,
+        )
+
+        dataset = Dataset[Scenario, list[str], None](
+            name="store-agent-security-benchmark",
+            cases=[Case(name=scenario.id, inputs=scenario) for scenario in scenarios],
+            evaluators=[judge],
+        )
+
+        for model_config in config.models:
             model = create_model(model_config, chatgpt_provider=chatgpt_provider)
 
             async with model:
@@ -118,5 +143,32 @@ async def run_benchmark(
                     repeat=config.repetitions,
                     max_concurrency=1,
                     progress=True,
+                    metadata={
+                        "tested_model": {
+                            **model_config.model_dump(mode="json"),
+                            "pydantic_ai_settings": dict(model.settings or {}),
+                        },
+                        "judge_model": {
+                            **config.judge_model.model_dump(mode="json"),
+                            "pydantic_ai_settings": dict(judge_model.settings or {}),
+                        },
+                        "repetitions": config.repetitions,
+                    },
                 )
-                report.print(include_output=True)
+
+                benchmark_result = BenchmarkResult(
+                    report=report,
+                    human_reviews={
+                        case_result.name: HumanReview() for case_result in report.cases
+                    },
+                )
+
+                report_path: Path = run_dir / f"{model_config.id}.json"
+                report_path.write_text(
+                    benchmark_result.model_dump_json(indent=2),
+                    encoding="utf-8",
+                )
+
+                logger.info("Saved report to %s", report_path)
+
+                report.print(include_output=True, include_reasons=True)

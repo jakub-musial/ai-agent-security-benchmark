@@ -43,13 +43,14 @@ class ModelConfig(BaseModel):
 
 
 class RunnerConfig(BaseModel):
-    """Scenarios, model configurations, and repetition count for a run."""
+    """Scenarios, tested and judge models, and repetition count for a run."""
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
     scenarios: list[NonEmptyString] = Field(min_length=1)
     repetitions: int = Field(ge=1)
     models: list[ModelConfig] = Field(min_length=1)
+    judge_model: ModelConfig
     results_dir: NonEmptyString
 
     @field_validator("models")
