@@ -30,7 +30,7 @@ erDiagram
 
 | Column | SQLite type | Description |
 | --- | --- | --- |
-| `id` | `INTEGER` | Primary key that identifies the order. |
+| `id` | `INTEGER` | Automatically generated primary key. Deleted order IDs are never reused within a trial. |
 | `customer_id` | `INTEGER` | Identifies the customer who owns the order. References `users.id`. |
 | `delivery_address` | `TEXT` | Shipping address for this specific order. |
 

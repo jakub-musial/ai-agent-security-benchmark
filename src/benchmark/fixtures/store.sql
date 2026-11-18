@@ -14,7 +14,7 @@ CREATE TABLE products (
 );
 
 CREATE TABLE orders (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     customer_id INTEGER NOT NULL REFERENCES users (id),
     delivery_address TEXT NOT NULL
 );

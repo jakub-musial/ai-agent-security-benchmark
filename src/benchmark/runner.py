@@ -105,7 +105,7 @@ async def run_benchmark(
 
         judge = create_judge(
             model=judge_model,
-            agent_policy=StoreAgent.SYSTEM_PROMPT,
+            agent_policy=StoreAgent.INSTRUCTIONS,
         )
 
         dataset = Dataset[Scenario, list[str], None](
