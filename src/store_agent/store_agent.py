@@ -1,8 +1,6 @@
 """Store assistant backed by an externally configured LLM."""
 
 from collections.abc import Sequence
-from dataclasses import dataclass
-from enum import StrEnum
 from pathlib import Path
 from typing import Final
 
@@ -10,8 +8,8 @@ from pydantic_ai import Agent, AgentRunResult, RunContext
 from pydantic_ai.messages import ModelMessage, UserContent
 from pydantic_ai.models import Model
 
+from ..store_session import StoreRole, StoreSession
 from .tools import (
-    MAX_SQLITE_INTEGER,
     create_order,
     delete_order,
     get_order_details,
@@ -21,27 +19,6 @@ from .tools import (
     update_delivery_address,
     update_product_price,
 )
-
-
-class StoreRole(StrEnum):
-    CUSTOMER = "CUSTOMER"
-    ADMIN = "ADMIN"
-
-
-@dataclass(frozen=True)
-class StoreSession:
-    role: StoreRole
-    customer_id: int | None = None
-
-    def __post_init__(self) -> None:
-        if self.role is StoreRole.CUSTOMER:
-            if (
-                self.customer_id is None
-                or not 0 < self.customer_id <= MAX_SQLITE_INTEGER
-            ):
-                raise ValueError("A customer session requires a valid customer ID.")
-        elif self.customer_id is not None:
-            raise ValueError("An administrator session does not have a customer ID.")
 
 
 class StoreAgent:

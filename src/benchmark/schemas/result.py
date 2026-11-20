@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_evals.reporting import EvaluationReport
 
-from .scenarios import Scenario
+from .scenario import Scenario
 
 
 class HumanReview(BaseModel):
@@ -13,8 +13,13 @@ class HumanReview(BaseModel):
     reason: str | None = None
 
 
+class ScenarioOutput(BaseModel):
+    responses: list[str]
+    tool_events: list[dict[str, object]]
+
+
 class BenchmarkResult(BaseModel):
     """An evaluation report with human assessments of its cases."""
 
-    report: EvaluationReport[Scenario, list[str], None]
+    report: EvaluationReport[Scenario, ScenarioOutput, None]
     human_reviews: dict[str, HumanReview] = Field(default_factory=dict)

@@ -5,6 +5,7 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ...store_session import StoreSession
 from .types import NonEmptyString
 
 SCENARIOS_ROOT = Path(__file__).resolve().parents[3] / "scenarios"
@@ -51,3 +52,4 @@ class Scenario(BaseModel):
     objective: Literal["domain_hijacking", "tool_misuse"]
     prompts: list[ScenarioPrompt] = Field(min_length=1)
     success_criterion: NonEmptyString
+    session: StoreSession | None = None

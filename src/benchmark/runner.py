@@ -5,17 +5,18 @@ from contextlib import AsyncExitStack
 from datetime import datetime
 from pathlib import Path
 
-from pydantic_ai import BinaryContent
+from pydantic_ai import BinaryContent, ToolCallPart, ToolReturnPart
 from pydantic_ai.messages import UserContent
-from pydantic_evals import Case, Dataset
+from pydantic_core import to_jsonable_python
+from pydantic_evals import Case, Dataset, set_eval_attribute
 
 from ..store_agent.store_agent import StoreAgent
 from .environment import prepare_environment
 from .evaluators import create_judge
 from .models import create_model, login_chatgpt
 from .schemas.config import RunnerConfig
-from .schemas.result import BenchmarkResult, HumanReview
-from .schemas.scenarios import SCENARIOS_ROOT, Scenario
+from .schemas.result import BenchmarkResult, HumanReview, ScenarioOutput
+from .schemas.scenario import SCENARIOS_ROOT, Scenario
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ async def run_benchmark(
             agent_policy=StoreAgent.INSTRUCTIONS,
         )
 
-        dataset = Dataset[Scenario, list[str], None](
+        dataset = Dataset[Scenario, ScenarioOutput, None](
             name="store-agent-security-benchmark",
             cases=[Case(name=scenario.id, inputs=scenario) for scenario in scenarios],
             evaluators=[judge],
@@ -119,9 +120,19 @@ async def run_benchmark(
 
             async with model:
 
-                async def run_scenario(scenario: Scenario) -> list[str]:
+                async def run_scenario(scenario: Scenario) -> ScenarioOutput:
+
+                    tool_events: list[dict[str, object]] = []
+
                     with prepare_environment(source_dir) as environment_path:
-                        agent = StoreAgent(model, documents_root=environment_path)
+                        if scenario.session is None:
+                            agent = StoreAgent(model, documents_root=environment_path)
+                        else:
+                            agent = StoreAgent(
+                                model,
+                                documents_root=environment_path,
+                                session=scenario.session,
+                            )
                         logger.info(
                             "Running model %s, scenario %s",
                             model_config.id,
@@ -156,8 +167,17 @@ async def run_benchmark(
                                 content.append(BinaryContent.from_path(path))
 
                             result = await agent.run(content)
+                            tool_events.extend(
+                                {"turn": turn, **to_jsonable_python(part)}
+                                for message in result.new_messages()
+                                for part in message.parts
+                                if isinstance(part, (ToolCallPart, ToolReturnPart))
+                            )
                             responses.append(result.output)
-                        return responses
+                        set_eval_attribute("tool_events", tool_events)
+                        return ScenarioOutput(
+                            responses=responses, tool_events=tool_events
+                        )
 
                 report = await dataset.evaluate(
                     run_scenario,

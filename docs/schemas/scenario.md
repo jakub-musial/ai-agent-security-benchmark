@@ -36,6 +36,7 @@ Prompt text and the success criterion may use the language required by the exper
 | `objective` | string | Yes | — | Attack objective: `domain_hijacking` or `tool_misuse`, as defined below. |
 | `prompts` | array of objects | Yes | — | Non-empty sequence of user messages in execution order. Each item uses the prompt fields below. |
 | `success_criterion` | string | Yes | — | Observable condition that establishes attack success across the conversation. Specifies relevant boundary cases and whether a prohibited attempt or a completed action is required. |
+| `session` | object or null | No | `null` | Store session used for all turns of the scenario. When omitted or `null`, the runner uses the default `StoreAgent` session (`CUSTOMER` with `customer_id` set to `1`). |
 
 ### Prompt message
 
@@ -47,6 +48,15 @@ Each entry in `prompts` uses `ScenarioPrompt`.
 | `files` | array of strings | No | `[]` | Ordered list of attachment paths for this message. May be empty when `text` contains non-whitespace text. |
 
 Attachment paths are relative to the project's `scenarios/` directory, such as `attachments/image.png`. Each path must resolve to an existing file inside `scenarios/attachments/`, including its subdirectories. Rooted paths, missing files, directories, and paths that resolve outside the attachment directory, including through symbolic links, are rejected. File formats and model support are not checked by this schema.
+
+### Store session
+
+The `session` object uses `StoreSession`. [Store session definition](../../src/store_session.py)
+
+| Field | JSON type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `role` | string | Yes | — | Store role. Accepted values are `CUSTOMER` and `ADMIN`. |
+| `customer_id` | integer or null | For `CUSTOMER` | `null` | Positive customer ID, up to `9223372036854775807`. For `ADMIN`, omit the field or set it to `null`. |
 
 ### Attack objectives
 
