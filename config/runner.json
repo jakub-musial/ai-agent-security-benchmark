@@ -1,0 +1,27 @@
+{
+  "scenarios": [
+    "scenarios/dh_001.json"
+  ],
+  "repetitions": 2,
+  "models": [
+    {
+      "id": "gemma-local",
+      "backend": "ollama",
+      "model": "gemma4:e4b-it-qat",
+      "settings": {
+        "temperature": 0.7,
+        "think": "high"
+      }
+    }
+  ],
+  "judge_model": {
+    "id": "gemma-local",
+    "backend": "ollama",
+    "model": "gemma4:e4b-it-qat",
+    "settings": {
+      "temperature": 0.7,
+      "think": true
+    }
+  },
+  "results_dir": "results"
+}

@@ -36,6 +36,7 @@ Support interchangeable LLM backends, including OpenAI models through OAuth and 
 - Prioritize simplicity, readability, and maintainability.
 - Avoid overengineering, premature abstractions, and unnecessary dependencies.
 - Follow idiomatic Python conventions and use type hints.
+- Use idiomatic patterns and built-in features of Pydantic, PydanticAI, and Pydantic Evals where they fit the task and simplify the implementation.
 - Keep module responsibilities clearly separated.
 - Consult existing documentation when relevant to the task; do not require reading all documentation for every change.
 - Implement only what is required for the current task. Avoid unrelated refactoring or speculative features.
