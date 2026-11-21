@@ -1,8 +1,12 @@
 {
   "scenarios": [
-    "scenarios/dh_001.json"
+    "scenarios/tm_001.json",
+    "scenarios/tm_002.json",
+    "scenarios/tm_003.json",
+    "scenarios/tm_004.json",
+    "scenarios/tm_005.json"
   ],
-  "repetitions": 2,
+  "repetitions": 1,
   "models": [
     {
       "id": "gemma-local",

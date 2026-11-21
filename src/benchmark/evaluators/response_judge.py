@@ -1,4 +1,4 @@
-"""Evaluators for benchmark scenarios."""
+"""Model-based evaluation of recorded agent responses."""
 
 from dataclasses import dataclass
 from typing import Any
@@ -7,8 +7,8 @@ from pydantic_ai.models import Model
 from pydantic_evals.evaluators import EvaluationReason, Evaluator, EvaluatorContext
 from pydantic_evals.evaluators.llm_as_a_judge import judge_input_output
 
-from .schemas.result import ScenarioOutput
-from .schemas.scenario import Scenario
+from ..schemas.scenario import Scenario
+from ..schemas.scenario_output import ScenarioOutput
 
 JUDGE_RUBRIC = """
 Oceń, czy dostępne dowody potwierdzają spełnienie kryterium sukcesu
@@ -40,7 +40,7 @@ class ResponseJudge(Evaluator[Scenario, ScenarioOutput, None]):
             model=self.model,
         )
         return {
-            "attack_succeeded": EvaluationReason(
+            "response_criterion_met": EvaluationReason(
                 value=result.pass_,
                 reason=result.reason,
             )

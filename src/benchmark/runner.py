@@ -11,12 +11,14 @@ from pydantic_core import to_jsonable_python
 from pydantic_evals import Case, Dataset, set_eval_attribute
 
 from ..store_agent.store_agent import StoreAgent
-from .environment import prepare_environment
-from .evaluators import create_judge
+from .environment import prepare_environment, read_store_snapshot
+from .evaluators.response_judge import create_judge
+from .evaluators.tool_expectations import ToolExpectationsEvaluator
 from .models import create_model, login_chatgpt
 from .schemas.config import RunnerConfig
-from .schemas.result import BenchmarkResult, HumanReview, ScenarioOutput
+from .schemas.result import BenchmarkResult, HumanReview
 from .schemas.scenario import SCENARIOS_ROOT, Scenario
+from .schemas.scenario_output import ScenarioOutput, StoreSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +114,7 @@ async def run_benchmark(
         dataset = Dataset[Scenario, ScenarioOutput, None](
             name="store-agent-security-benchmark",
             cases=[Case(name=scenario.id, inputs=scenario) for scenario in scenarios],
-            evaluators=[judge],
+            evaluators=[judge, ToolExpectationsEvaluator()],
         )
 
         for model_config in config.models:
@@ -123,8 +125,18 @@ async def run_benchmark(
                 async def run_scenario(scenario: Scenario) -> ScenarioOutput:
 
                     tool_events: list[dict[str, object]] = []
+                    tool_expectations = scenario.tool_expectations
+                    needs_store_state = tool_expectations is not None and any(
+                        check.event == "final_state_change"
+                        for check in tool_expectations.checks
+                    )
 
                     with prepare_environment(source_dir) as environment_path:
+                        store_before: StoreSnapshot | None = (
+                            read_store_snapshot(environment_path)
+                            if needs_store_state
+                            else None
+                        )
                         if scenario.session is None:
                             agent = StoreAgent(model, documents_root=environment_path)
                         else:
@@ -176,7 +188,14 @@ async def run_benchmark(
                             responses.append(result.output)
                         set_eval_attribute("tool_events", tool_events)
                         return ScenarioOutput(
-                            responses=responses, tool_events=tool_events
+                            responses=responses,
+                            tool_events=tool_events,
+                            store_before=store_before,
+                            store_after=(
+                                read_store_snapshot(environment_path)
+                                if needs_store_state
+                                else None
+                            ),
                         )
 
                 report = await dataset.evaluate(

@@ -1,6 +1,6 @@
 # Runner configuration JSON schema
 
-`RunnerConfig`, defined in [`src/benchmark/schemas/config.py`](../src/benchmark/schemas/config.py), describes a benchmark run: the selected scenarios, tested models, judge model, repetition count, and output directory. The runner reads this configuration from a UTF-8 JSON file, such as `config/runner.json`.
+`RunnerConfig` selects the scenarios, tested models, judge model, repetition count, and output directory for a benchmark run. The runner reads this configuration from a UTF-8 JSON file such as `config/runner.json`. [RunnerConfig definition](../../src/benchmark/schemas/config.py)
 
 ## Example
 
@@ -46,11 +46,11 @@ Replace `<model-identifier>` with a model available through the OpenAI OAuth bac
 
 | Field | JSON type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `scenarios` | array of strings | Yes | — | Non-empty list of paths to [scenario files](scenario-configuration.md). Each scenario runs against every entry in `models`. |
+| `scenarios` | array of strings | Yes | — | Non-empty list of paths to scenario files. Each scenario runs against every entry in `models`. [Scenario schema](scenario.md) |
 | `repetitions` | integer | Yes | — | Number of independent executions of each scenario for each tested model. Minimum: `1`. |
-| `models` | array of objects | Yes | — | Non-empty list of tested model configurations. Each entry uses the model fields below. |
-| `judge_model` | object | Yes | — | Model configuration used by the LLM judge to assess attack success. Uses the same fields as an entry in `models`. |
-| `results_dir` | string | Yes | — | Output directory. Each run creates a subdirectory named `YYYY-MM-DD_HH-MM-SS_microseconds` containing one [result file](result-schema.md) per tested model. |
+| `models` | array of objects | Yes | — | Non-empty list of model configurations to test. Each entry follows the [Model configuration](#model-configuration) schema. |
+| `judge_model` | object | Yes | — | Model that `ResponseJudge` uses to assess the agent’s responses against each scenario’s `success_criterion`. Uses the same fields as an entry in `models`. |
+| `results_dir` | string | Yes | — | Output directory. Each run creates a subdirectory named `YYYY-MM-DD_HH-MM-SS_microseconds` containing one result file per tested model. [Result schema](result.md) |
 
 Relative paths in `scenarios` and `results_dir` are resolved from the working directory, not from the configuration file's directory.
 
@@ -63,7 +63,7 @@ Each entry in `models` and the `judge_model` object uses `ModelConfig`.
 | `id` | string | Yes | — | Configuration identifier. Used as the report name and the result filename: `<id>.json`. Must be unique within `models`; `judge_model.id` may match a tested model's ID. |
 | `backend` | string | Yes | — | Connection backend: `openai_oauth` or `ollama`. |
 | `model` | string | Yes | — | Model identifier accepted by the backend, such as `gemma3:4b` for Ollama. |
-| `settings` | object | No | `{}` | Generation settings described below. Omission or an empty object leaves all generation controls unset. |
+| `settings` | object | No | `{}` | See [Generation settings](#generation-settings). Omission or an empty object leaves all generation controls unset. |
 
 ### Generation settings
 
@@ -85,6 +85,6 @@ Scenario files are loaded and scenario IDs are checked for uniqueness when the b
 
 ## Interpretation
 
-The number of scenario executions is `len(scenarios) × len(models) × repetitions`. The judge evaluates these executions; it does not add scenario executions of its own.
+The number of scenario executions is `len(scenarios) × len(models) × repetitions`. Each completed execution is evaluated by `ResponseJudge`. When the scenario declares `tool_expectations`, `ToolExpectationsEvaluator` also checks the recorded evidence using deterministic rules. Both evaluators use the same execution.
 
-Each execution runs the scenario's entire prompt list with a fresh sandbox, agent, and conversation history. State is shared between turns within that execution and reset before the next execution. Execution errors are recorded separately from attack verdicts in the [result schema](result-schema.md).
+Each execution starts with a fresh sandbox, agent, and conversation history. Turns share state within the execution. The result file records execution failures and evaluator results. [Result schema](result.md)

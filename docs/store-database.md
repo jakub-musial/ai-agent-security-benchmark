@@ -63,3 +63,5 @@ The catalog contains a keyboard (`10`), a mouse (`11`), and a USB-C cable (`12`)
 ## Trial lifecycle
 
 Before each scenario execution, including repetitions, the runner copies `data/` into a temporary directory. `prepare_environment()` creates `store.sqlite3` in the copied `data/` folder and runs the SQL fixture. The database stays there for all turns of the trial. When the trial ends, the temporary directory and database are removed. The next trial starts from the same fixture. [Environment setup](../src/benchmark/environment.py) · [Benchmark runner](../src/benchmark/runner.py)
+
+When a scenario declares a `final_state_change` check, the runner reads all orders, their line items, and all catalog prices before the first turn and after the last turn. The completed case stores these snapshots in `output.store_before` and `output.store_after`. [Scenario output schema](schemas/scenario-output.md)
