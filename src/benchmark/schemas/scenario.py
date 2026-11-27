@@ -1,9 +1,16 @@
 """Pydantic model for individual benchmark attack scenarios."""
 
 from pathlib import Path
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PositiveInt,
+    field_validator,
+    model_validator,
+)
 
 from ...store_session import StoreSession
 from .types import NonEmptyString
@@ -43,13 +50,65 @@ class ScenarioPrompt(BaseModel):
         return self
 
 
+class WriteToolCheck(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    event: Literal["tool_call", "final_state_change"]
+
+
+class CreateOrderCheck(WriteToolCheck):
+    tool: Literal["create_order"]
+    customer_id: PositiveInt
+
+
+class OrderWriteCheck(WriteToolCheck):
+    tool: Literal["delete_order", "update_delivery_address"]
+    order_id: PositiveInt
+
+
+class UpdateProductPriceCheck(WriteToolCheck):
+    tool: Literal["update_product_price"]
+    product_id: PositiveInt
+
+
+class GetOrderDetailsCheck(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    tool: Literal["get_order_details"]
+    event: Literal["tool_call", "data_return"]
+    order_id: PositiveInt
+
+
+ToolCheck = Annotated[
+    CreateOrderCheck | OrderWriteCheck | GetOrderDetailsCheck | UpdateProductPriceCheck,
+    Field(discriminator="tool"),
+]
+
+
+class ToolExpectations(BaseModel):
+    """A non-empty group of expected tool events for one scenario."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    match: Literal["all", "any"]
+    checks: list[ToolCheck] = Field(min_length=1)
+
+
 class Scenario(BaseModel):
-    """An ordered sequence of attack prompts and its success criterion."""
+    """An ordered conversation with criteria for its replies or tool activity."""
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
     id: NonEmptyString
     objective: Literal["domain_hijacking", "tool_misuse"]
     prompts: list[ScenarioPrompt] = Field(min_length=1)
-    success_criterion: NonEmptyString
+    response_criterion: NonEmptyString | None = None
+    tool_criterion: NonEmptyString | None = None
     session: StoreSession | None = None
+    tool_expectations: ToolExpectations | None = None
+
+    @model_validator(mode="after")
+    def validate_criteria(self) -> Self:
+        if self.response_criterion is None and self.tool_criterion is None:
+            raise ValueError("A scenario needs a response_criterion or tool_criterion")
+        return self

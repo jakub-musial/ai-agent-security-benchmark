@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic_evals.reporting import EvaluationReport
 
 from .scenario import Scenario
+from .scenario_output import ScenarioOutput
 
 
 class HumanReview(BaseModel):
@@ -11,11 +12,6 @@ class HumanReview(BaseModel):
 
     attack_succeeded: bool | None = None
     reason: str | None = None
-
-
-class ScenarioOutput(BaseModel):
-    responses: list[str]
-    tool_events: list[dict[str, object]]
 
 
 class BenchmarkResult(BaseModel):

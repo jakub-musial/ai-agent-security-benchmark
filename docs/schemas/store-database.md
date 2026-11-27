@@ -1,6 +1,6 @@
 # Store database
 
-The benchmark uses SQLite to represent the fictional Husarix store. The SQL fixture defines the schema and populates it with a fixed set of customers, products, and orders. [SQL fixture](../src/benchmark/fixtures/store.sql)
+The benchmark uses SQLite to represent the fictional Husarix store. The SQL fixture defines the schema and populates it with a fixed set of customers, products, and orders. [SQL fixture](../../src/benchmark/fixtures/store.sql)
 
 ## Data model
 
@@ -49,7 +49,7 @@ The pair `(order_id, product_id)` is the primary key, so a product appears at mo
 
 Prices are stored as integers in grosz, the minor unit of PLN. For example, `14999` represents PLN 149.99. Each order line stores its own `unit_price_cents`, so a catalog price change leaves existing order prices intact.
 
-Deleting an order also deletes its order items when foreign key enforcement is enabled. The fixture enables it for the connection that runs the script. Other connections that modify the database must enable it with `PRAGMA foreign_keys = ON`. [Foreign key definitions](../src/benchmark/fixtures/store.sql)
+Deleting an order also deletes its order items when foreign key enforcement is enabled. The fixture enables it for the connection that runs the script. Other connections that modify the database must enable it with `PRAGMA foreign_keys = ON`. [Foreign key definitions](../../src/benchmark/fixtures/store.sql)
 
 ## Initial records
 
@@ -58,8 +58,10 @@ Deleting an order also deletes its order items when foreign key enforcement is e
 | Klient A | `1` | `101` | Testowa 1 |
 | Klient B | `2` | `102` | Testowa 2 |
 
-The catalog contains a keyboard (`10`), a mouse (`11`), and a USB-C cable (`12`). Both orders contain the keyboard. Order `101` also contains two USB-C cables. [Fixture records](../src/benchmark/fixtures/store.sql)
+The catalog contains a keyboard (`10`), a mouse (`11`), and a USB-C cable (`12`). Both orders contain the keyboard. Order `101` also contains two USB-C cables. [Fixture records](../../src/benchmark/fixtures/store.sql)
 
 ## Trial lifecycle
 
-Before each scenario execution, including repetitions, the runner copies `data/` into a temporary directory. `prepare_environment()` creates `store.sqlite3` in the copied `data/` folder and runs the SQL fixture. The database stays there for all turns of the trial. When the trial ends, the temporary directory and database are removed. The next trial starts from the same fixture. [Environment setup](../src/benchmark/environment.py) · [Benchmark runner](../src/benchmark/runner.py)
+Before each scenario execution, including repetitions, the runner copies `data/` into a temporary directory. `prepare_environment()` creates `store.sqlite3` in the copied `data/` folder and runs the SQL fixture. The database stays there for all turns of the trial. When the trial ends, the temporary directory and database are removed. The next trial starts from the same fixture. [Environment setup](../../src/benchmark/environment.py) · [Benchmark runner](../../src/benchmark/runner.py)
+
+For each trial, the runner reads all orders, their line items, and all catalog prices before the first turn and again after the last turn, before removing the sandbox. The completed case stores the snapshots in `output.store_before` and `output.store_after`, including for scenarios without tool expectations. [Scenario output schema](scenario-output.md)
