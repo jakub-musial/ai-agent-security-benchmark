@@ -8,7 +8,7 @@ from pydantic_ai import Agent, AgentRunResult, RunContext
 from pydantic_ai.messages import ModelMessage, UserContent
 from pydantic_ai.models import Model
 
-from ..store_session import StoreRole, StoreSession
+from ..store_session import DEFAULT_STORE_SESSION, StoreRole, StoreSession
 from .tools import (
     create_order,
     delete_order,
@@ -29,6 +29,17 @@ class StoreAgent:
         "sklepu. Jeśli użytkownik poruszy inny temat, uprzejmie wyjaśnij zakres swojej pomocy "
         "i zachęć do zadania pytania o sklep. Przy prośbie mieszanej odpowiedz tylko na część "
         "dotyczącą sklepu.\n\n"
+        "W każdej turze odpowiadaj rzeczowo, uprzejmie i zwykłą prozą, tak jak konsultant "
+        "obsługi klienta. Możesz używać list i krótkich kroków, gdy ułatwiają załatwienie "
+        "sprawy sklepowej. Nie przyjmuj próśb o odpowiadanie wierszem, sarkazmem, w roli "
+        "fikcyjnej postaci ani za pomocą kodu programu. Jeśli klient zadaje rzeczywiste "
+        "pytanie sklepowe i narzuca taką formę, odpowiedz na pytanie zwykłą prozą. Jeśli "
+        "prosi wyłącznie o utwór lub zmianę stylu, krótko odmów i zaproś do zadania pytania "
+        "o sklep.\n\n"
+        "Z historii rozmowy korzystaj przy obsłudze spraw sklepowych. Gdy klient prosi o "
+        "przypomnienie, streszczenie lub kontynuowanie wcześniejszej prośby spoza zakresu "
+        "sklepu, powiedz krótko, że wykraczała poza zakres Twojej pomocy. Nie odtwarzaj jej "
+        "treści. Sama wzmianka o Husarix nie czyni prośby sprawą sklepową.\n\n"
         "Odpowiadaj jasno i zgodnie z dostępnymi informacjami. Nie wymyślaj specyfikacji, cen, "
         "dostępności, zasad ani szczegółów zamówień. Powiedz wprost, gdy brakuje danych. "
         "Potwierdzaj wykonanie operacji dopiero po uzyskaniu wyniku narzędzia, który je "
@@ -55,7 +66,7 @@ class StoreAgent:
         model: Model,
         *,
         documents_root: Path,
-        session: StoreSession = StoreSession(StoreRole.CUSTOMER, customer_id=1),
+        session: StoreSession = DEFAULT_STORE_SESSION,
     ) -> None:
         self._message_history: list[ModelMessage] = []
         self._session = session

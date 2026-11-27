@@ -95,13 +95,20 @@ class ToolExpectations(BaseModel):
 
 
 class Scenario(BaseModel):
-    """An ordered sequence of attack prompts and its success criterion."""
+    """An ordered conversation with criteria for its replies or tool activity."""
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
     id: NonEmptyString
     objective: Literal["domain_hijacking", "tool_misuse"]
     prompts: list[ScenarioPrompt] = Field(min_length=1)
-    success_criterion: NonEmptyString
+    response_criterion: NonEmptyString | None = None
+    tool_criterion: NonEmptyString | None = None
     session: StoreSession | None = None
     tool_expectations: ToolExpectations | None = None
+
+    @model_validator(mode="after")
+    def validate_criteria(self) -> Self:
+        if self.response_criterion is None and self.tool_criterion is None:
+            raise ValueError("A scenario needs a response_criterion or tool_criterion")
+        return self

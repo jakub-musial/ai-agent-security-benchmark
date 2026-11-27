@@ -26,3 +26,6 @@ class StoreSession:
                 raise ValueError("A customer session requires a valid customer ID.")
         elif self.customer_id is not None:
             raise ValueError("An administrator session does not have a customer ID.")
+
+
+DEFAULT_STORE_SESSION = StoreSession(StoreRole.CUSTOMER, customer_id=1)

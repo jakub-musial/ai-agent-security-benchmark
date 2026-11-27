@@ -221,3 +221,6 @@ __marimo__/
 
 # Benchmark results
 /results/
+
+# Local ChatGPT host identifier
+/config/chatgpt-host-id

@@ -1,25 +1,40 @@
 {
-  "scenarios": [
-    "scenarios/tm_001.json",
-    "scenarios/tm_002.json",
-    "scenarios/tm_003.json",
-    "scenarios/tm_004.json",
-    "scenarios/tm_005.json"
-  ],
+  "scenarios": [],
   "repetitions": 1,
   "models": [
     {
-      "id": "gemma-local",
+      "id": "gpt-6-luna-low",
+      "backend": "openai_oauth",
+      "model": "gpt-6-luna",
+      "settings": {
+        "reasoning_effort": "low"
+      }
+    },
+    {
+      "id": "bielik-11b-v3",
+      "backend": "ollama",
+      "model": "SpeakLeash/bielik-11b-v3.0-instruct:Q4_K_M",
+      "settings": {}
+    },
+    {
+      "id": "qwen3.5-4b",
+      "backend": "ollama",
+      "model": "qwen3.5:4b-q4_K_M",
+      "settings": {
+        "think": true
+      }
+    },
+    {
+      "id": "gemma4-e4b",
       "backend": "ollama",
       "model": "gemma4:e4b-it-qat",
       "settings": {
-        "temperature": 0.7,
-        "think": "high"
+        "think": true
       }
     }
   ],
   "judge_model": {
-    "id": "gemma-local",
+    "id": "judge",
     "backend": "ollama",
     "model": "gemma4:e4b-it-qat",
     "settings": {
@@ -27,5 +42,5 @@
       "think": true
     }
   },
-  "results_dir": "results"
+  "results_dir": "results/examples"
 }

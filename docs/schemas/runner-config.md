@@ -7,7 +7,7 @@
 ```json
 {
   "scenarios": [
-    "scenarios/dh_001.json"
+    "scenarios/examples/dh_001.json"
   ],
   "repetitions": 2,
   "models": [
@@ -36,7 +36,7 @@
       "temperature": 0.0
     }
   },
-  "results_dir": "results"
+  "results_dir": "results/examples"
 }
 ```
 
@@ -49,7 +49,7 @@ Replace `<model-identifier>` with a model available through the OpenAI OAuth bac
 | `scenarios` | array of strings | Yes | — | Non-empty list of paths to scenario files. Each scenario runs against every entry in `models`. [Scenario schema](scenario.md) |
 | `repetitions` | integer | Yes | — | Number of independent executions of each scenario for each tested model. Minimum: `1`. |
 | `models` | array of objects | Yes | — | Non-empty list of model configurations to test. Each entry follows the [Model configuration](#model-configuration) schema. |
-| `judge_model` | object | Yes | — | Model that `ResponseJudge` uses to assess the agent’s responses against each scenario’s `success_criterion`. Uses the same fields as an entry in `models`. |
+| `judge_model` | object | Yes | — | Shared model for `ResponseJudge` and `ToolJudge`. Uses the same fields as an entry in `models`. |
 | `results_dir` | string | Yes | — | Output directory. Each run creates a subdirectory named `YYYY-MM-DD_HH-MM-SS_microseconds` containing one result file per tested model. [Result schema](result.md) |
 
 Relative paths in `scenarios` and `results_dir` are resolved from the working directory, not from the configuration file's directory.
@@ -85,6 +85,6 @@ Scenario files are loaded and scenario IDs are checked for uniqueness when the b
 
 ## Interpretation
 
-The number of scenario executions is `len(scenarios) × len(models) × repetitions`. Each completed execution is evaluated by `ResponseJudge`. When the scenario declares `tool_expectations`, `ToolExpectationsEvaluator` also checks the recorded evidence using deterministic rules. Both evaluators use the same execution.
+The number of scenario executions is `len(scenarios) × len(models) × repetitions`. For each completed execution, a declared `response_criterion` selects `ResponseJudge` and a declared `tool_criterion` selects `ToolJudge`. `ToolExpectationsEvaluator` checks any declared `tool_expectations` using deterministic rules.
 
 Each execution starts with a fresh sandbox, agent, and conversation history. Turns share state within the execution. The result file records execution failures and evaluator results. [Result schema](result.md)

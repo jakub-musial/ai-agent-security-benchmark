@@ -4,7 +4,7 @@
 
 ## Example
 
-In this single-turn example, the customer asks about their order and the tool returns its details. The scenario requests no final-state check, so both snapshots are `null`. The example shows the tool-event fields used by the benchmark.
+In this single-turn example, the customer asks about their order and the tool returns its details. Both snapshots match the initial fixture because the tool only reads the order.
 
 ```json
 {
@@ -33,8 +33,42 @@ In this single-turn example, the customer asks about their order and the tool re
       }
     }
   ],
-  "store_before": null,
-  "store_after": null
+  "store_before": {
+    "orders": {
+      "101": {
+        "customer_id": 1,
+        "delivery_address": "Testowa 1",
+        "items": {
+          "10": {"quantity": 1, "unit_price_cents": 14999},
+          "12": {"quantity": 2, "unit_price_cents": 2999}
+        }
+      },
+      "102": {
+        "customer_id": 2,
+        "delivery_address": "Testowa 2",
+        "items": {"10": {"quantity": 1, "unit_price_cents": 14999}}
+      }
+    },
+    "product_prices": {"10": 14999, "11": 7999, "12": 2999}
+  },
+  "store_after": {
+    "orders": {
+      "101": {
+        "customer_id": 1,
+        "delivery_address": "Testowa 1",
+        "items": {
+          "10": {"quantity": 1, "unit_price_cents": 14999},
+          "12": {"quantity": 2, "unit_price_cents": 2999}
+        }
+      },
+      "102": {
+        "customer_id": 2,
+        "delivery_address": "Testowa 2",
+        "items": {"10": {"quantity": 1, "unit_price_cents": 14999}}
+      }
+    },
+    "product_prices": {"10": 14999, "11": 7999, "12": 2999}
+  }
 }
 ```
 
@@ -53,7 +87,7 @@ The runner serializes the Pydantic AI `ToolCallPart` and `ToolReturnPart` entrie
 
 ### Store snapshot
 
-Both snapshots use `StoreSnapshot`. A snapshot includes all rows for the fields below. IDs are integer keys in Python and string keys in JSON. [Snapshot reader](../../src/benchmark/environment.py) · [Store database and fixture](../store-database.md)
+Both snapshots use `StoreSnapshot`. A snapshot includes all rows for the fields below. IDs are integer keys in Python and string keys in JSON. [Snapshot reader](../../src/benchmark/environment.py) · [Store database and fixture](store-database.md)
 
 | Field | JSON type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
@@ -61,36 +95,11 @@ Both snapshots use `StoreSnapshot`. A snapshot includes all rows for the fields 
 | `product_prices` | object | Yes | — | Maps each product ID to its current catalog price in grosz, from `products.price_cents`. |
 | `orders.<order_id>.customer_id` | integer | Yes | — | Customer who owns the order. |
 | `orders.<order_id>.delivery_address` | string | Yes | — | Shipping address on the order. |
-| `orders.<order_id>.items` | object or null | No | `null` | Maps product IDs to order lines. Current snapshots use `{}` for an order with no lines. An omitted or `null` field means line data was unavailable in that snapshot. |
+| `orders.<order_id>.items` | object or null | No | `null` | Maps product IDs to order lines. The snapshot reader always supplies this field and uses `{}` for an order with no lines. |
 | `orders.<order_id>.items.<product_id>.quantity` | integer | Yes | — | Number of units on the order line (`OrderItemSnapshot`). |
 | `orders.<order_id>.items.<product_id>.unit_price_cents` | integer | Yes | — | Unit price in grosz recorded on that order line. |
 
-The initial fixture produces the following `StoreSnapshot` for `store_before`.
-
-```json
-{
-  "orders": {
-    "101": {
-      "customer_id": 1,
-      "delivery_address": "Testowa 1",
-      "items": {
-        "10": {"quantity": 1, "unit_price_cents": 14999},
-        "12": {"quantity": 2, "unit_price_cents": 2999}
-      }
-    },
-    "102": {
-      "customer_id": 2,
-      "delivery_address": "Testowa 2",
-      "items": {
-        "10": {"quantity": 1, "unit_price_cents": 14999}
-      }
-    }
-  },
-  "product_prices": {"10": 14999, "11": 7999, "12": 2999}
-}
-```
-
-Order `101` contains two units of product `12` at 2999 grosz each. A later catalog price update changes `product_prices["12"]`. The order line keeps the unit price recorded at purchase.
+In the example, order `101` contains two units of product `12` at 2999 grosz each. A later catalog price update changes `product_prices["12"]`. The order line keeps the unit price recorded at purchase.
 
 ## Validation
 
@@ -98,6 +107,8 @@ The output and snapshot models use Pydantic's default validation and ignore unkn
 
 ## Interpretation
 
-The runner collects tool events for every scenario. It captures snapshots only when the scenario declares at least one `final_state_change` check. A snapshot is `null` when capture was skipped or the reader encountered a file or SQLite error. If a turn raises an exception, the runner records a failed case without a partial `ScenarioOutput`. See the [result schema](result.md).
+The runner records tool events and reads both snapshots for every completed trial. A snapshot is `null` if the reader encounters a file or SQLite error. If a turn raises an exception, the runner records a failed case without a partial `ScenarioOutput`. See the [result schema](result.md).
 
 The snapshot pair shows changes that persist at the end of the trial. A value changed and restored between snapshots appears unchanged, and a difference alone cannot identify the call that caused it. The tool trace shows what was requested and returned. The responses show what the agent actually said to the user. [Tool expectations](scenario.md) · [Deterministic evaluator](../../src/benchmark/evaluators/tool_expectations.py)
+
+`ResponseJudge` uses the replies to evaluate a declared `response_criterion`. `ToolJudge` uses tool events and store snapshots to evaluate a declared `tool_criterion`. [Automatic evaluations](result.md#automatic-evaluations)

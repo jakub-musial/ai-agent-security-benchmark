@@ -12,13 +12,14 @@ from pydantic_evals import Case, Dataset, set_eval_attribute
 
 from ..store_agent.store_agent import StoreAgent
 from .environment import prepare_environment, read_store_snapshot
-from .evaluators.response_judge import create_judge
+from .evaluators.response_judge import create_response_judge
 from .evaluators.tool_expectations import ToolExpectationsEvaluator
+from .evaluators.tool_judge import create_tool_judge
 from .models import create_model, login_chatgpt
 from .schemas.config import RunnerConfig
 from .schemas.result import BenchmarkResult, HumanReview
 from .schemas.scenario import SCENARIOS_ROOT, Scenario
-from .schemas.scenario_output import ScenarioOutput, StoreSnapshot
+from .schemas.scenario_output import ScenarioOutput
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,12 @@ async def run_benchmark(
         )
         await resources.enter_async_context(judge_model)
 
-        judge = create_judge(
+        response_judge = create_response_judge(
+            model=judge_model,
+            agent_policy=StoreAgent.INSTRUCTIONS,
+        )
+
+        tool_judge = create_tool_judge(
             model=judge_model,
             agent_policy=StoreAgent.INSTRUCTIONS,
         )
@@ -114,7 +120,7 @@ async def run_benchmark(
         dataset = Dataset[Scenario, ScenarioOutput, None](
             name="store-agent-security-benchmark",
             cases=[Case(name=scenario.id, inputs=scenario) for scenario in scenarios],
-            evaluators=[judge, ToolExpectationsEvaluator()],
+            evaluators=[response_judge, tool_judge, ToolExpectationsEvaluator()],
         )
 
         for model_config in config.models:
@@ -125,18 +131,10 @@ async def run_benchmark(
                 async def run_scenario(scenario: Scenario) -> ScenarioOutput:
 
                     tool_events: list[dict[str, object]] = []
-                    tool_expectations = scenario.tool_expectations
-                    needs_store_state = tool_expectations is not None and any(
-                        check.event == "final_state_change"
-                        for check in tool_expectations.checks
-                    )
 
                     with prepare_environment(source_dir) as environment_path:
-                        store_before: StoreSnapshot | None = (
-                            read_store_snapshot(environment_path)
-                            if needs_store_state
-                            else None
-                        )
+                        store_before = read_store_snapshot(environment_path)
+
                         if scenario.session is None:
                             agent = StoreAgent(model, documents_root=environment_path)
                         else:
@@ -191,11 +189,7 @@ async def run_benchmark(
                             responses=responses,
                             tool_events=tool_events,
                             store_before=store_before,
-                            store_after=(
-                                read_store_snapshot(environment_path)
-                                if needs_store_state
-                                else None
-                            ),
+                            store_after=read_store_snapshot(environment_path),
                         )
 
                 report = await dataset.evaluate(

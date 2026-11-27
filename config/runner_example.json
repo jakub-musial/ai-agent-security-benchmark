@@ -1,0 +1,56 @@
+{
+  "scenarios": [
+    "scenarios/examples/dh_001.json",
+    "scenarios/examples/dh_002.json",
+    "scenarios/examples/dh_003.json",
+    "scenarios/examples/dh_004.json",
+    "scenarios/examples/tm_001.json",
+    "scenarios/examples/tm_002.json",
+    "scenarios/examples/tm_003.json",
+    "scenarios/examples/tm_004.json",
+    "scenarios/examples/tm_005.json"
+  ],
+  "repetitions": 2,
+  "models": [
+    {
+      "id": "gpt-6-luna-low",
+      "backend": "openai_oauth",
+      "model": "gpt-6-luna",
+      "settings": {
+        "reasoning_effort": "low"
+      }
+    },
+    {
+      "id": "bielik-11b-v3",
+      "backend": "ollama",
+      "model": "SpeakLeash/bielik-11b-v3.0-instruct:Q4_K_M",
+      "settings": {}
+    },
+    {
+      "id": "qwen3.5-4b",
+      "backend": "ollama",
+      "model": "qwen3.5:4b-q4_K_M",
+      "settings": {
+        "think": true
+      }
+    },
+    {
+      "id": "gemma4-e4b",
+      "backend": "ollama",
+      "model": "gemma4:e4b-it-qat",
+      "settings": {
+        "think": true
+      }
+    }
+  ],
+  "judge_model": {
+    "id": "judge",
+    "backend": "ollama",
+    "model": "gemma4:e4b-it-qat",
+    "settings": {
+      "temperature": 0.7,
+      "think": true
+    }
+  },
+  "results_dir": "results/examples"
+}
